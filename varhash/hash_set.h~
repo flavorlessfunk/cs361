@@ -1,0 +1,566 @@
+#ifndef HASHSET_H
+#define HASHSET_H
+
+//
+//      Hash table implementation of set
+//         (open addressing, quadratic hashing)
+
+
+#include <algorithm>
+#include <functional>
+#include <iterator>
+#include <vector>
+#include <iostream>
+#include <cassert>
+#include <cstddef>
+
+
+/**
+ * Possible status values for a HashEntry:
+ *   Occupied means the table slot has a data element.
+ *   Empty (also indicated by a null pointer in the vector) means that
+ *       this table slot has never held a data element.
+ *   Deleted means that this table slot had a data element in the past
+ *       but that element has been erased and so the slot is not
+ *       occupied now.
+ */
+enum HashStatus { Occupied, Empty, Deleted };
+
+/**
+ * The contents of a single slot in the hash table.
+ */
+template <class T>
+struct HashEntry
+{
+  T data;
+  unsigned hash;
+  HashStatus info;
+  
+  HashEntry(): info(Empty), hash(0)  {}
+  HashEntry(const T& v, unsigned h, HashStatus status)
+    : data(v), hash(h), info(status) {}
+  
+private:
+  // Forbid copying of HashEntries
+  HashEntry(const HashEntry<T>&): info(Empty), hash(0) {}
+  void operator=(const HashEntry<T>&) {}
+  // (If you think you need to copy these, you should consider
+  // copying pointers to them instead.)
+};
+
+
+/**
+ * Const iterator class for use with the hash set.
+ */
+template <class T, class HashFun, class CompareEQ=std::equal_to<T> >
+class hset_const_iterator
+{
+public:
+  typedef std::bidirectional_iterator_tag iterator_category;
+  typedef T                          value_type;
+  typedef ptrdiff_t                  difference_type;
+  typedef const T*                   pointer;
+  typedef const T&                   reference;
+  
+  
+  hset_const_iterator& operator ++()
+  {++current; advance(); return *this;}
+  hset_const_iterator operator ++(int)
+  {
+    hset_const_iterator clone = this;
+    ++current;
+    advance();
+    return clone;
+  }
+  
+  hset_const_iterator & operator --()
+  {--current; regress(); return *this;}
+  hset_const_iterator operator --(int)
+  {hset_const_iterator clone = this;
+    --current;
+    regress();
+    return clone;}
+  
+  reference operator * () { return (*current)->data; }
+  pointer operator -> () { return &((*current)->data); }
+  
+  bool operator == (const hset_const_iterator & rhs) const
+  { return current == rhs.current; }
+  bool operator != (const hset_const_iterator & rhs) const
+  { return current != rhs.current; }
+  
+protected:
+  typename std::vector<HashEntry<T>*>::const_iterator current;
+  const std::vector<HashEntry<T>*>* v;
+  
+  hset_const_iterator (typename std::vector<HashEntry<T>*>::const_iterator p,
+                       const std::vector<HashEntry<T>*>& theVector)
+    : current(p), v(&theVector) {}
+  
+  void advance()
+  {
+    while (current != v->end()
+           && ((*current) == 0
+               || (*current)->info == Deleted
+               || (*current)->info == Empty))
+      ++current;
+  }
+  
+  void regress()
+  {
+    while (current != v->begin()
+           && ((*current) == 0
+               || (*current)->info == Deleted
+               || (*current)->info == Empty))
+      --current;
+  }
+  
+  template<class T1, class HashFun1, class CompareEQ1> friend class hash_set;
+  template<class T1, class HashFun1, class CompareEQ1> 
+  friend std::ostream& operator<<
+  (std::ostream& out, const hset_const_iterator<T1,HashFun1,CompareEQ1>& it);
+
+};
+
+template <class T, class Hash, class Equals>
+std::ostream& operator<< (std::ostream& out,
+                          const hset_const_iterator<T,Hash,Equals>& it)
+{
+  if (it.v != 0)
+    out << "@" << (it.current - it.v->begin());
+  else
+    out << "@??";
+  return out;
+}
+
+
+/**
+ * A set of elements of type T, implemented using variable hashing.
+ * This is, in essence, a simplified version of unordered_set.
+ */
+template <class T, class HashFun=std::hash<T>, class CompareEQ=std::equal_to<T> >
+class hash_set
+{
+public:
+  typedef unsigned size_type;
+  typedef T key_type;
+  typedef T value_type;
+  
+  
+  /**
+   * Create an empty set.
+   */
+  hash_set ();
+  
+  /**
+   * Create a copy of an existing set.
+   * @param s the set to copy
+   */
+  hash_set (const hash_set<T,HashFun,CompareEQ>& s);
+  
+  /**
+   * Destroy a set.
+   */
+  ~hash_set ();
+  
+  /**
+   * Assignment operator for sets
+   * @param s the set to be copied into this one
+   * @return the copied set value
+   */
+  const hash_set<T,HashFun,CompareEQ>&
+  operator= (const hash_set<T,HashFun,CompareEQ>& s);
+  
+  /**
+   * Is thise set empty?
+   * @return true iff the set is empty.
+   */
+  bool empty() const {return theSize == 0;}
+  
+  /**
+   * How many elements are in this set?
+   * @return the number of elements in this set.
+   */
+  size_type size() const  {return theSize;}
+  
+  /**
+   * Insert an element into this set. Duplicates are not permitted,
+   * so this will overwrite an equal element already in the set.
+   *
+   * @param element value to add to the set
+   */
+  void insert (const T& element);
+  
+  /**
+   * How many copies of an element are in the set?
+   *
+   * @param element value to look for.
+   * @return 1 if the element is in the set, zero otherwise
+   */
+  unsigned count (const T& element) const;
+  
+  /**
+   * Remove this element from the set. If the element is
+   * not already in the set, this has no effect.
+   *
+   * @param element value to remove
+   */
+  void erase (const T& element);
+  
+  /**
+   * Remove all elements form the set, leaving it empty.
+   */
+  void clear();
+  
+  
+  /**
+   * Iterator types for this set.  Iterators can be used to visit
+   * every element in a set, but the order in which the elements will
+   * encountered is deliberately unspecified.
+   */
+  typedef hset_const_iterator<T,HashFun,CompareEQ> const_iterator;
+  typedef hset_const_iterator<T,HashFun,CompareEQ> iterator;
+  
+  /**
+   * Return the position of the first element in the set.
+   * @return the position of the first element or end() if the set is empty
+   */
+  const_iterator begin() const
+  {
+    const_iterator i = const_iterator(table.begin(), table);
+    i.advance();
+    return i;
+  }
+  
+  /**
+   * The position just after the last element in the set.
+   * @return the ending position
+   */
+  const_iterator end() const {return const_iterator(table.end(), table);}
+  
+  /**
+   * Search for an element in the set.
+   *
+   * @param element value to search for
+   * @return position where the element was found, or end() if
+   *     element is not in the set.
+   */
+  const_iterator find (const T& element) const;
+  
+  /**
+   * Utility function for testing purposes.
+   * @param out output stream
+   */
+  void printStats(std::ostream& out) const
+  {
+    using namespace std;
+    out << "size: " << theSize << "   hSize: " << hSize;
+    out << "    table size: " << table.size() << "   capacity: " << table.capacity();
+    out << "   largest internal gap: " << maxGap();
+    out << endl;
+  }
+  
+private:
+  /**
+   * A sequence of prime numbers, each roughly twice the one before, to be
+   * used as table sizes.
+   */
+  static unsigned primes[13];
+  
+  /**
+   * Search the table for the given element with the indicated hash value,
+   * using quadratic probing. Stop either when finding the element or upon
+   * coming to an empty slot. (Optionally, stop at a deleted slot as well.)
+   *
+   * @param element the value being searched for
+   * @param h0 the hash value of element
+   * @param stopAtDeleted if true, stop upon finding something in the table
+   *           equal to element or at an empty slot or at a deleted slot. If false
+   *           ignore deleted slots and keep searching.
+   * @return the position where the search stopped, either because we found the
+   *     element or fund and empty (or deleted) slot.
+   */
+  unsigned find (const T& element, unsigned h0, bool stopAtDeleted) const;
+  
+  
+  /**
+   * Increase the size of the hash table to the next largest prime in the
+   * primes table, redistributing the elements already in the table to their
+   * new positions.
+   */
+  void rehash();
+  
+  /**
+   * Utility function for testing purposes: reports on the largest
+   * unoccupied range in the table to help determine if quadratic
+   * probing is being applied correctly.
+   * @return
+   */
+  int maxGap() const;
+  
+  
+  /**
+   * The hash table itself. This is a vector of pointers.
+   * If a pointer is null, it indicates that the slot is empty.
+   * If not null, it points to a HashEntry that can be empty,
+   * occupied, or deleted.
+   */
+  std::vector<HashEntry<T>*> table;
+  
+  /**
+   * The number of elements in the table.
+   */
+  int theSize;
+  
+  /**
+   * The number of slots in the table. We try to keep this large
+   * enough so that hSize >= 2*theSize.
+   */
+  unsigned hSize;
+  
+  /**
+   * Index of the prime number from which hSize was obtained.
+   */
+  unsigned hSize_index;
+  
+  /**
+   * The hash function/functor for this table.
+   */
+  HashFun hash;
+  
+  /**
+   * The comparison (equal to) function for this table.
+   */
+  CompareEQ compare;
+};
+
+template <class T, class Hash1, class Hash2, class Equals1, class Equals2>
+bool operator== (const hash_set<T,Hash1,Equals1>& left,
+                 const hash_set<T,Hash2,Equals2>& right)
+{
+  if (left.size() == right.size())
+    {
+      for (typename hash_set<T,Hash1,Equals1>::const_iterator p = left.begin();
+           p != left.end(); ++p)
+        {
+          if (right.count(*p) == 0)
+            return false;
+        }
+      return true;
+    }
+  else
+    return false;
+}
+
+template <class T, class Hash1, class Equals1>
+std::ostream& operator<< (std::ostream& out, 
+                          const hash_set<T,Hash1,Equals1>& set)
+{
+  using namespace std;
+  
+  out << "{";
+  copy (set.begin(), set.end(), ostream_iterator<T>(out, ", "));
+  out << "}";
+  return out;
+}
+
+
+
+// Table of prime numbers:  Use these for table sizes so that
+// quadratic probing will succeed.
+template <class T, class HashFun, class CompareEQ>
+unsigned hash_set<T,HashFun,CompareEQ>::primes[13] =
+  {5, 13, 31, 61, 127, 521, 1279, 2281, 3217,
+   9689, 19937, 44497, 86243};
+
+
+
+
+
+template <class T, class HashFun, class CompareEQ>
+hash_set<T,HashFun,CompareEQ>::
+hash_set (): theSize(0), hSize_index(0)
+{
+  // hash table size is the hsize_Index_th prime number in the primes table
+  hSize = primes[hSize_index];
+  table.resize(hSize, nullptr);
+}
+
+template <class T, class HashFun, class CompareEQ>
+hash_set<T,HashFun,CompareEQ>::
+hash_set (const hash_set<T,HashFun,CompareEQ>& hs)
+  : theSize(0), hSize(hs.hSize), hSize_index(hs.hSize_index)
+{
+  table.resize(hSize, nullptr);
+  for (unsigned i = 0; i < hSize; ++i)
+    if ((hs.table[i] != nullptr) && (hs.table[i]->info == Occupied))
+      insert (hs.table[i]->data);
+}
+
+template <class T, class HashFun, class CompareEQ>
+hash_set<T,HashFun,CompareEQ>::
+~hash_set ()
+{
+  clear();
+}
+
+
+template <class T, class HashFun, class CompareEQ>
+const hash_set<T,HashFun,CompareEQ>&
+hash_set<T,HashFun,CompareEQ>::
+operator= (const hash_set<T,HashFun,CompareEQ>& hs)
+{
+  if (this != &hs)
+    {
+      clear();
+      for (unsigned i = 0; i < hs.hSize; ++i)
+        if ((hs.table[i] != nullptr) && (hs.table[i]->info == Occupied))
+          insert (hs.table[i]->data);
+    }
+  return *this;
+}
+
+
+template <class T, class HashFun, class CompareEQ>
+void  hash_set<T,HashFun,CompareEQ>::
+insert (const T& element)
+{
+  unsigned h0 = hash(element);
+  
+  // Is this item already in the table?
+  unsigned h = find(element, h0, false);
+  HashEntry<T>* slot = table[h];
+  if (slot == nullptr || slot->info != Occupied)
+    {
+      // No.  Find an empty or deleted slot to put it into.
+      h = find(element, h0, true);
+      delete table[h];
+      table[h] = new HashEntry<T>(element, h0, Occupied);
+      ++theSize;
+    }
+  else
+    { // Yes.  Replace the data field.
+      slot->data = element;
+    }
+  
+  // Is the table half full or more?  If so, increase the table size
+  // and redistribute the data.
+  if (2U*theSize >= hSize)
+    rehash();
+}
+
+
+template <class T, class HashFun, class CompareEQ>
+void  hash_set<T,HashFun,CompareEQ>::
+rehash ()
+{
+  //*** Implement this function.  It should increase the size of
+  //*** the hash table to primes[hSize_index+1], redistributing the
+  //*** entries already in the table to their new positions.
+}
+
+
+template <class T, class HashFun, class CompareEQ>
+unsigned hash_set<T,HashFun,CompareEQ>::
+count (const T& element) const
+{
+  unsigned h0 = hash(element);
+  unsigned h = find(element, h0, false);
+  const HashEntry<T>* slot = table[h];
+  return  (slot != nullptr && slot->info == Occupied) ? 1 : 0;
+}
+
+
+
+
+template <class T, class HashFun, class CompareEQ>
+void hash_set<T,HashFun,CompareEQ>::
+erase (const T& element)
+{
+  unsigned h0 = hash(element);
+  unsigned h = find(element, h0, false);
+  HashEntry<T>* slot = table[h];
+  if (slot != nullptr && slot->info == Occupied)
+    {
+      table[h]->info = Deleted;
+      --theSize;
+    }
+}
+
+
+template <class T, class HashFun, class CompareEQ>
+void hash_set<T,HashFun,CompareEQ>::
+clear()
+{
+  for (unsigned i = 0; i < hSize; ++i)
+    {
+      delete table[i];
+      table[i] = nullptr;
+    }
+  theSize = 0;
+}
+
+
+
+template <class T, class HashFun, class CompareEQ>
+unsigned hash_set<T,HashFun,CompareEQ>::
+find (const T& element, unsigned h0, bool stopAtDelete) const
+{
+  //*** Implement this function.  
+  //*** This is the private find function that must apply quadratic
+  //*** probing to find an element or a place where that element
+  //*** could be inserted. (More details in the function declaration
+  //*** above).
+}
+
+
+template <class T, class HashFun, class CompareEQ>
+typename hash_set<T,HashFun,CompareEQ>::const_iterator
+hash_set<T,HashFun,CompareEQ>::
+find (const T& element) const
+{
+  unsigned h0 = hash(element);
+  unsigned h = find(element, h0, false);
+  const HashEntry<T>* slot = table[h];
+  if (slot == nullptr || slot->info != Occupied)
+    return end();
+  else
+    return const_iterator(table.begin()+h, table);
+}
+
+
+template <class T, class HashFun, class CompareEQ>
+int  hash_set<T,HashFun,CompareEQ>::
+maxGap() const
+{
+  int largestGap = 0;
+  for (int i = 0; i < hSize; )
+    {
+      if (table[i] != nullptr && table[i]->info == Occupied)
+        {
+          int gap = 0;
+          for (int j = i + 1; j < hSize; ++j)
+            {
+              if (table[j] == nullptr  || table[j]->info != Occupied) {
+                largestGap = std::max(largestGap, gap);
+                i = j;
+                break;
+              }
+              ++gap;
+            }
+          i++;
+        } else {
+        ++i;
+      }
+    }
+  return largestGap;
+  
+}
+
+
+
+
+
+
+
+#endif

@@ -1,0 +1,12 @@
+Please read the General Instructions for Turning In Assignments.
+
+In the design of our spellchecker, we encountered a number of different "containers", sets and ordered sequences. We had more than one set, and more than one sequence. The sets all behaved similarly to one another, but the data types of the elements varied. Similarly, we had ordered sequences of different kinds of elements, but the functions and behaviors of all ordered sequences were essentially the same.
+
+In this assignment you are provided with a nearly complete implementation of the spellchecker. Some of the containers are missing, however, and you must supply them. You don't need to program them from scratch, however, You should be able to produce any missing sets or sequences from the similar ADT implementations already provided. In fact, at least 90% of this assignment can beaccomplished using your editor's search-and-replace-all operation.
+Files provided:
+Files for this assignment appear in this directory,  also available via anonymous ftp at ftp.cs.odu.edu in directory /pub/zeil/cs361/Assignments/pretemplate/, or, if you are logged in to a CS Dept machine, in ~zeil/cs361/Assignments/pretemplate.
+
+Files to Submit:
+*.h, *.cpp: Your implementation of the missing ADTs..
+
+

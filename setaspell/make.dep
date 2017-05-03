@@ -1,0 +1,6 @@
+correction.o: correction.cpp correction.h wordoccurrence.h token.h
+replacement.o: replacement.cpp replacement.h
+spellcheck.o: spellcheck.cpp wordoccurrence.h token.h correction.h \
+ replacement.h vectorUtils.h
+token.o: token.cpp token.h
+wordoccurrence.o: wordoccurrence.cpp wordoccurrence.h token.h

@@ -1,0 +1,86 @@
+#include "polynomial.h"
+#include <algorithm>
+
+using namespace std;
+
+
+Polynomial::Polynomial ()
+{
+}
+
+Polynomial::Polynomial (const vector<double>& coeff)
+{
+	for (vector<double>::size_type i = 0; i < coeff.size(); ++i)
+	{
+		const double& c = coeff[i];
+		if (c != 0.0)
+			terms.push_back (Term(c, i));
+	}
+}
+
+
+
+
+double Polynomial::evaluate (double x) const
+{
+	double sum = 0.0;
+	int k = getDegree();
+	auto pos = terms.rbegin();
+	while (pos != terms.rend())
+	{
+		if (k > pos->power) {
+			sum *= x;
+		} else {
+			sum = x * sum + pos->coeff;
+			++pos;
+		}
+		--k;
+	}
+	return sum;
+}
+
+
+
+std::istream& operator>> (std::istream& in, Polynomial& p)
+{
+	int r;
+	in >> r;
+	vector<double> coefficients;
+	coefficients.resize(r);
+	for (int i = 0; i < r; ++i)
+		in >> coefficients[i];
+	p = Polynomial(coefficients);
+	return in;
+}
+
+
+std::ostream& operator<< (std::ostream& out, const Polynomial& p)
+{
+	if (p.getDegree() < 0)
+	{
+		out << "0";
+	}
+	else
+	{
+		bool first_printed = true;
+		for (const Polynomial::Term& t: p.terms)
+		{
+			double c = t.coeff;
+			if (!first_printed)
+			{
+				out << " + ";
+			}
+			first_printed = false;
+			out << c;
+			if (t.power > 0)
+			{
+				out << " x";
+				if (t.power > 1)
+				{
+					out << "^" << t.power;
+				}
+			}
+		}
+	}
+	return out;
+}

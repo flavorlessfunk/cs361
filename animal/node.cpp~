@@ -1,0 +1,20 @@
+#include "node.h"
+#include <cassert>
+
+using namespace std;
+
+// write the tree whose root is given.
+// Note: the form written out by this function should be something
+//   that read(...) will accept, recreating the original tree.
+void node::write (std::ostream& out, const node* root)
+{
+  // insert your code here
+}
+
+
+// read a tree from in storing the tree root in t
+void node::read (istream& in, node*& t)
+{
+  // replace the line below by your own code
+  t = NULL;
+}

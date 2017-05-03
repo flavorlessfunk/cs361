@@ -1,0 +1,17 @@
+tripplanner.o: tripplanner.cpp graph.h digraph.h edgebase.h vertexbase.h \
+  vertex.h edge.h allvertices.h alledges.h alloutedges.h allinedges.h \
+  dijkstra.h
+dijkstra.o: dijkstra.cpp dijkstra.h digraph.h edgebase.h vertexbase.h \
+  vertex.h edge.h allvertices.h alledges.h alloutedges.h allinedges.h
+alledges.o: alledges.cpp alledges.h edge.h vertex.h digraph.h edgebase.h \
+  vertexbase.h allvertices.h alloutedges.h allinedges.h
+allvertices.o: allvertices.cpp allvertices.h vertex.h digraph.h \
+  edgebase.h vertexbase.h edge.h alledges.h alloutedges.h allinedges.h
+graph.o: graph.cpp graph.h digraph.h edgebase.h vertexbase.h vertex.h \
+  edge.h allvertices.h alledges.h alloutedges.h allinedges.h
+allinedges.o: allinedges.cpp allinedges.h edge.h vertex.h digraph.h \
+  edgebase.h vertexbase.h allvertices.h alledges.h alloutedges.h
+alloutedges.o: alloutedges.cpp alloutedges.h edge.h vertex.h digraph.h \
+  edgebase.h vertexbase.h allvertices.h alledges.h allinedges.h
+digraph.o: digraph.cpp digraph.h edgebase.h vertexbase.h vertex.h edge.h \
+  allvertices.h alledges.h alloutedges.h allinedges.h
